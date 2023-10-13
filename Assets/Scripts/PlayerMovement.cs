@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -17,14 +18,20 @@ public class PlayerMovement : MonoBehaviour
     public float groundDrag = 1f;
     public float airDrag = 0.5f;
 
+    [Header("Precision Jumping")]
+    public float maxJumpForce = 5f;
+    private bool isPreparingJump = false;
+    private float jumpChargeTime = 0f;
+    public float precisionJumpPrepSpeed = 0.2f;
+    
     [Header("Camera Rotation")]
     public float rotationPower = 3f;
     public GameObject followTransform;
     [HideInInspector]
     public Vector2 look;
     
-
-    
+    [Header("Web Anchoring")]
+    private WebAnchoring _webAnchoring;
     
     private float _moveInputHorizontal;
     private float _moveInputVertical;
@@ -40,6 +47,10 @@ public class PlayerMovement : MonoBehaviour
     void Start()
     {
         _rigidbody = GetComponent<Rigidbody>();
+        _webAnchoring = GetComponent<WebAnchoring>();
+        //Locking the cursor so it doesnt go boing boing around TODO:Move it to game manager maybe.
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     /// <summary>
@@ -55,10 +66,26 @@ public class PlayerMovement : MonoBehaviour
         look.y = Input.GetAxis("Mouse Y");
         HandleCameraRotation();
 
-        if (Input.GetButtonDown("Jump"))
+        
+        //Handle precision jumping
+        if (Input.GetButtonDown("Jump") && IsGrounded())
         {
-            OnJump();
+            isPreparingJump = true;
+            jumpChargeTime = 0f;
         }
+
+        if (Input.GetButtonUp("Jump") && isPreparingJump)
+        {
+            isPreparingJump = false;
+            OnPrecisionJump();
+        }
+
+        if (isPreparingJump)
+        {
+            jumpChargeTime += Time.deltaTime;
+        }
+
+        
     }
 
     /// <summary>
@@ -68,6 +95,8 @@ public class PlayerMovement : MonoBehaviour
     {
         OnMove();
     }
+
+    
 
     #endregion
 
@@ -107,7 +136,16 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     void OnMove()
     {
-        float currentSpeed = Input.GetKey(KeyCode.LeftShift) ? sprintSpeed : walkSpeed;
+        float currentSpeed;
+        
+        if (isPreparingJump)
+        {
+            currentSpeed = precisionJumpPrepSpeed;
+        }
+        else
+        {
+            currentSpeed = Input.GetKey(KeyCode.LeftShift) ? sprintSpeed : walkSpeed;
+        }
 
         _rigidbody.drag = IsGrounded() ? groundDrag : airDrag;
 
@@ -146,12 +184,10 @@ public class PlayerMovement : MonoBehaviour
     /// <summary>
     /// Initiates a jump if the player is grounded.
     /// </summary>
-    void OnJump()
+    void OnPrecisionJump()
     {
-        if (IsGrounded())
-        {
-            _rigidbody.velocity = new Vector3(_rigidbody.velocity.x, jumpForce, _rigidbody.velocity.z);
-        }
+        float calculatedJumpForce = Mathf.Lerp(jumpForce, maxJumpForce, jumpChargeTime);
+        _rigidbody.velocity = new Vector3(_rigidbody.velocity.x, calculatedJumpForce, _rigidbody.velocity.z);
     }
 
     /// <summary>
