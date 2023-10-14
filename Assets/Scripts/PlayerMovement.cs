@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// Handles the player's movement, including walking, sprinting, jumping, and camera rotation.
@@ -11,7 +12,6 @@ public class PlayerMovement : MonoBehaviour
     [Header("Movement")]
     public float walkSpeed = 0.5f;
     public float sprintSpeed = 1f;
-    public float jumpForce = 1f;
     public Transform groundCheckPoint;
     public LayerMask groundLayer;
     public float groundCheckDistance = 0.1f;
@@ -19,10 +19,12 @@ public class PlayerMovement : MonoBehaviour
     public float airDrag = 0.5f;
 
     [Header("Precision Jumping")]
+    public float jumpForce = 0.5f;
     public float maxJumpForce = 5f;
+    public float maxChargeTime = 5f; 
     private bool isPreparingJump = false;
     private float jumpChargeTime = 0f;
-    public float precisionJumpPrepSpeed = 0.2f;
+    public float precisionJumpPrepMoveSpeed = 0.5f;
     
     [Header("Camera Rotation")]
     public float rotationPower = 3f;
@@ -82,7 +84,7 @@ public class PlayerMovement : MonoBehaviour
 
         if (isPreparingJump)
         {
-            jumpChargeTime += Time.deltaTime;
+            jumpChargeTime = Mathf.Min(jumpChargeTime + Time.deltaTime, maxChargeTime);
         }
 
         
@@ -140,7 +142,7 @@ public class PlayerMovement : MonoBehaviour
         
         if (isPreparingJump)
         {
-            currentSpeed = precisionJumpPrepSpeed;
+            currentSpeed = precisionJumpPrepMoveSpeed;
         }
         else
         {
@@ -186,7 +188,8 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     void OnPrecisionJump()
     {
-        float calculatedJumpForce = Mathf.Lerp(jumpForce, maxJumpForce, jumpChargeTime);
+        float chargeRatio = jumpChargeTime / maxChargeTime;
+        float calculatedJumpForce = Mathf.Lerp(jumpForce, maxJumpForce, chargeRatio);
         _rigidbody.velocity = new Vector3(_rigidbody.velocity.x, calculatedJumpForce, _rigidbody.velocity.z);
     }
 
@@ -202,5 +205,9 @@ public class PlayerMovement : MonoBehaviour
         //Debug.DrawRay(transform.position, Vector3.down * groundCheckDistance, Color.red);
     }
 
+    public float GetJumpCharge()
+    {
+        return jumpChargeTime / maxChargeTime; // This returns a value between 0 and 1
+    }
     #endregion
 }
