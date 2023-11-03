@@ -17,7 +17,9 @@ public class PlayerMovement : MonoBehaviour
     public float groundCheckDistance = 0.1f;
     public float groundDrag = 1f;
     public float airDrag = 0.5f;
-
+    public float airSpeedMultiplier = 1.1f; // 10% faster than regular speed
+    
+    
     [Header("Precision Jumping")]
     public float jumpForce = 0.5f;
     public float maxJumpForce = 5f;
@@ -25,6 +27,7 @@ public class PlayerMovement : MonoBehaviour
     private bool isPreparingJump = false;
     private float jumpChargeTime = 0f;
     public float precisionJumpPrepMoveSpeed = 0.5f;
+    public float forwardMomentumMultiplier = 0.5f; // Adjust this value to control the amount of forward momentum
     
     [Header("Camera Rotation")]
     public float rotationPower = 3f;
@@ -39,13 +42,12 @@ public class PlayerMovement : MonoBehaviour
     private float _moveInputVertical;
     private Rigidbody _rigidbody;
 
+    [Header("Focus Mode")]
+    private float focusMultiplier = 1f;    
     #endregion
 
     #region UnityMethods
 
-    /// <summary>
-    /// Initialization method.
-    /// </summary>
     void Start()
     {
         _rigidbody = GetComponent<Rigidbody>();
@@ -55,9 +57,6 @@ public class PlayerMovement : MonoBehaviour
         Cursor.visible = false;
     }
 
-    /// <summary>
-    /// Called every frame. Handles input and camera rotation.
-    /// </summary>
     void Update()
     {
         _moveInputHorizontal = Input.GetAxisRaw("Horizontal");
@@ -84,15 +83,12 @@ public class PlayerMovement : MonoBehaviour
 
         if (isPreparingJump)
         {
-            jumpChargeTime = Mathf.Min(jumpChargeTime + Time.deltaTime, maxChargeTime);
+            jumpChargeTime = Mathf.Min(jumpChargeTime + Time.deltaTime * focusMultiplier, maxChargeTime);
         }
 
         
     }
 
-    /// <summary>
-    /// Called at a fixed interval. Handles movement.
-    /// </summary>
     void FixedUpdate()
     {
         OnMove();
@@ -111,9 +107,9 @@ public class PlayerMovement : MonoBehaviour
     {
         // Horizontal rotation
         followTransform.transform.rotation *= Quaternion.AngleAxis(look.x * rotationPower, Vector3.up);
-
         // Vertical rotation
         followTransform.transform.rotation *= Quaternion.AngleAxis(look.y * rotationPower, Vector3.right);
+        
 
         var angles = followTransform.transform.localEulerAngles;
         angles.z = 0;
@@ -139,7 +135,7 @@ public class PlayerMovement : MonoBehaviour
     void OnMove()
     {
         float currentSpeed;
-        
+    
         if (isPreparingJump)
         {
             currentSpeed = precisionJumpPrepMoveSpeed;
@@ -148,14 +144,27 @@ public class PlayerMovement : MonoBehaviour
         {
             currentSpeed = Input.GetKey(KeyCode.LeftShift) ? sprintSpeed : walkSpeed;
         }
-
+        
+        currentSpeed *= focusMultiplier;
+        
         _rigidbody.drag = IsGrounded() ? groundDrag : airDrag;
 
         if (_moveInputHorizontal != 0 || _moveInputVertical != 0)
         {
+            // Desired forward direction
+            Vector3 desiredForward = Vector3.Normalize(followTransform.transform.forward);
+            desiredForward.y = 0; // Ensure no vertical component
+            
+            // Target rotation
+            Quaternion targetRotation = Quaternion.LookRotation(desiredForward);
+
+            // Smoothly interpolate to the target rotation
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);  // 10f is a speed factor, adjust as necessary
+            
             Vector3 lookTargetForward = followTransform.transform.forward; // Use the followTransform's forward direction
             Vector3 lookTargetRight = followTransform.transform.right; // Use the followTransform's right direction
-
+            
+            
             // Remove the y component
             lookTargetForward.y = 0;
             lookTargetRight.y = 0;
@@ -178,8 +187,12 @@ public class PlayerMovement : MonoBehaviour
             }
             else
             {
-                _rigidbody.velocity = new Vector3(moveDirection.x * currentSpeed, _rigidbody.velocity.y, moveDirection.z * currentSpeed);
+                // Increase speed by airSpeedMultiplier when in air
+                _rigidbody.velocity = new Vector3(moveDirection.x * currentSpeed * airSpeedMultiplier, _rigidbody.velocity.y, moveDirection.z * currentSpeed * airSpeedMultiplier);
             }
+            
+            
+            
         }
     }
 
@@ -190,7 +203,12 @@ public class PlayerMovement : MonoBehaviour
     {
         float chargeRatio = jumpChargeTime / maxChargeTime;
         float calculatedJumpForce = Mathf.Lerp(jumpForce, maxJumpForce, chargeRatio);
-        _rigidbody.velocity = new Vector3(_rigidbody.velocity.x, calculatedJumpForce, _rigidbody.velocity.z);
+    
+        // Calculate forward momentum based on charge ratio
+        Vector3 forwardMomentum = followTransform.transform.forward * forwardMomentumMultiplier * chargeRatio;
+
+        // Apply jump force and forward momentum
+        _rigidbody.velocity = new Vector3(forwardMomentum.x, calculatedJumpForce, forwardMomentum.z);
     }
 
     /// <summary>
@@ -205,9 +223,22 @@ public class PlayerMovement : MonoBehaviour
         //Debug.DrawRay(transform.position, Vector3.down * groundCheckDistance, Color.red);
     }
 
+    /// <summary>
+    /// Connects to the UI to charge the slider
+    /// </summary>
     public float GetJumpCharge()
     {
         return jumpChargeTime / maxChargeTime; // This returns a value between 0 and 1
+    }
+    
+    
+    /// <summary>
+    /// Connected to the Visual Acuity script to change movement speed
+    /// </summary>
+    ///
+    public void SetFocusMultiplier(float multiplier)
+    {
+        focusMultiplier = multiplier;
     }
     #endregion
 }

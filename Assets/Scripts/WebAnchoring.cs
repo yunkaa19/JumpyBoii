@@ -1,4 +1,7 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
+
 
 public class WebAnchoring : MonoBehaviour
 {
@@ -15,7 +18,16 @@ public class WebAnchoring : MonoBehaviour
     
     [Header("Web Visuals")]
     public LineRenderer tetherRenderer;
-    private PlayerMovement pm;
+    
+    [Header("UI References")]
+    public Image tetherIcon; 
+    public Sprite defaultIcon; 
+    public Sprite tetheredIcon; 
+    
+    public Image detachTetherIcon;  
+    public Sprite defaultDetachIcon;
+    public Sprite activeDetachIcon; 
+    
     #endregion
 
 
@@ -23,8 +35,10 @@ public class WebAnchoring : MonoBehaviour
     #region UnityMethods
     private void Start()
     {
-        pm = GetComponent<PlayerMovement>();
         tetherRenderer.enabled = false; // Initially hide the tether
+        UpdateTetherIcon();
+        UpdateDetachTetherIcon();
+
     }
 
     void Update()
@@ -32,8 +46,14 @@ public class WebAnchoring : MonoBehaviour
         // Visualize the tether if the spider is using the tether
         if (isUsingTether)
         {
-            tetherRenderer.SetPosition(0, transform.position);
-            tetherRenderer.SetPosition(1, tetherStartPoint);
+            if (isUsingTether)
+            {
+                Vector3 localPlayerPos = tetherRenderer.transform.InverseTransformPoint(transform.position);
+                Vector3 localTetherStartPoint = tetherRenderer.transform.InverseTransformPoint(tetherStartPoint);
+
+                tetherRenderer.SetPosition(0, localPlayerPos);
+                tetherRenderer.SetPosition(1, localTetherStartPoint);
+            }
         }
 
         if (Input.GetButtonDown("WebAnchor")) // Respond to the "WebAnchor" input action
@@ -58,26 +78,13 @@ public class WebAnchoring : MonoBehaviour
     
     #endregion
 
-    // public void StartJump()
-    // {
-    //     isJumping = true;
-    //     tetherRenderer.enabled = true; // Show the tether
-    // }
-    //
-    // public void EndJump()
-    // {
-    //     isJumping = false;
-    //     if (!isUsingTether)
-    //     {
-    //         tetherRenderer.enabled = false; // Hide the tether if not using it
-    //     }
-    // }
     
     
     
     
     void ActivateTether()
     {
+        //TODO: Make tether create new anchor points as it hits edges
         RaycastHit hit;
         float maxDistance = 2f; // You can adjust this value based on your needs
 
@@ -87,6 +94,8 @@ public class WebAnchoring : MonoBehaviour
         }
         isUsingTether = true;
         tetherRenderer.enabled = true; // Show the tether
+        UpdateTetherIcon();
+        UpdateDetachTetherIcon();
     }
 
     void DeactivateTether()
@@ -94,6 +103,8 @@ public class WebAnchoring : MonoBehaviour
         isUsingTether = false;
         isRetractingTether = false;
         tetherRenderer.enabled = false; // Hide the tether
+        UpdateTetherIcon();
+        UpdateDetachTetherIcon();
     }
 
     void RetractTether()
@@ -103,5 +114,43 @@ public class WebAnchoring : MonoBehaviour
         {
             DeactivateTether();
         }
+    }
+    
+    void UpdateTetherIcon()
+    {
+        if (tetherIcon) // Check if the tetherIcon is assigned
+        {
+            StartCoroutine(PulseEffect(tetherIcon,1f, 0.9f, 1.1f));  // Pulse for 1 second between 90% and 110% of original size
+
+            tetherIcon.sprite = isUsingTether ? tetheredIcon : defaultIcon;
+        }
+    }
+    
+    void UpdateDetachTetherIcon()
+    {
+        if (detachTetherIcon)
+        {
+            // If the tether is active, the detach action is possible, so set the active icon
+            detachTetherIcon.sprite = isUsingTether ? activeDetachIcon : defaultDetachIcon;
+
+            // If transitioning to the active state, give a pulse effect
+            if(isUsingTether) 
+            {
+                StartCoroutine(PulseEffect(detachTetherIcon, 1f, 0.9f, 1.1f));
+            }
+        }
+    }
+    
+    IEnumerator PulseEffect(Image targetIcon, float duration, float minScale, float maxScale)  // Modify the PulseEffect to take an Image parameter
+    {
+        float elapsedTime = 0f;
+        while (elapsedTime < duration)
+        {
+            float currentScale = Mathf.Lerp(minScale, maxScale, (Mathf.Sin(elapsedTime * Mathf.PI * 2 / duration) + 1) / 2);
+            targetIcon.transform.localScale = new Vector3(currentScale, currentScale, currentScale);
+            elapsedTime += Time.deltaTime;
+            yield return null;
+        }
+        targetIcon.transform.localScale = Vector3.one;
     }
 }
