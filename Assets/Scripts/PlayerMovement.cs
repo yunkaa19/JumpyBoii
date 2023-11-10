@@ -24,7 +24,7 @@ public class PlayerMovement : MonoBehaviour
     public float jumpForce = 0.5f;
     public float maxJumpForce = 5f;
     public float maxChargeTime = 5f; 
-    private bool isPreparingJump = false;
+    internal bool isPreparingJump = false;
     private float jumpChargeTime = 0f;
     public float precisionJumpPrepMoveSpeed = 0.5f;
     public float forwardMomentumMultiplier = 0.5f; // Adjust this value to control the amount of forward momentum
@@ -215,7 +215,7 @@ public class PlayerMovement : MonoBehaviour
     /// Checks if the player is grounded.
     /// </summary>
     /// <returns>True if the player is grounded, false otherwise.</returns>
-    bool IsGrounded()
+    public bool IsGrounded()
     {
         RaycastHit hit;
         bool isGrounded = Physics.Raycast(transform.position, Vector3.down, out hit, groundCheckDistance, groundLayer);

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine.UI;
 
 public class VisualAcuity : MonoBehaviour
@@ -28,6 +29,16 @@ public class VisualAcuity : MonoBehaviour
 
     [Header("Volume Fade Parameters")]
     public float fadeDuration = 1f;
+    
+    [Header("Spider Vision Parameters")]
+    public float visionRange = 10f;
+
+    private Dictionary<GameObject, int> originalLayers = new Dictionary<GameObject, int>();
+    
+    [Header("Spider Vision Update Parameters")]
+    public float updateInterval = 0.5f; // Interval in seconds for updating highlighted objects
+
+    private Coroutine updateCoroutine;
 
     void Update()
     {
@@ -57,6 +68,13 @@ public class VisualAcuity : MonoBehaviour
             }
         }
     }
+    
+    void OnDrawGizmos()
+    {
+        // Draw a wireframe sphere in the Scene view to represent the vision range
+        Gizmos.color = Color.blue; // Set the color of the Gizmo
+        Gizmos.DrawWireSphere(transform.position, visionRange);
+    }
 
     void ActivateFocus()
     {
@@ -75,6 +93,8 @@ public class VisualAcuity : MonoBehaviour
         Time.timeScale = focusTimeScale;
         if (playerMovement)
             playerMovement.SetFocusMultiplier(2f);
+        
+        updateCoroutine = StartCoroutine(UpdateHighlightedObjectsCoroutine());
     }
 
     void DeactivateFocus()
@@ -90,6 +110,69 @@ public class VisualAcuity : MonoBehaviour
         }
         if (playerMovement)
             playerMovement.SetFocusMultiplier(1f);
+        
+        if (updateCoroutine != null)
+        {
+            StopCoroutine(updateCoroutine);
+            updateCoroutine = null;
+        }
+        
+        RestoreOriginalMaterials();
+    }
+    
+    void HighlightObjects()
+    {
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, visionRange);
+        foreach (var hitCollider in hitColliders)
+        {
+            // Update the layer of the parent object
+            UpdateLayer(hitCollider.gameObject);
+
+            // Recursively update the layer of all child objects
+            foreach (Transform child in hitCollider.transform)
+            {
+                UpdateLayer(child.gameObject);
+            }
+        }
+    }
+    
+    void UpdateLayer(GameObject obj)
+    {
+        // Store the original layer
+        if (!originalLayers.ContainsKey(obj))
+        {
+            originalLayers[obj] = obj.layer;
+        }
+
+        // Change the layer based on the object's tag or other conditions
+        if (obj.CompareTag("Danger"))
+        {
+            obj.layer = LayerMask.NameToLayer("Danger");
+        }
+        else if (obj.CompareTag("Objective"))
+        {
+            obj.layer = LayerMask.NameToLayer("Objective");
+        }
+        else if (obj.CompareTag("PointOfInterest"))
+        {
+            obj.layer = LayerMask.NameToLayer("PointOfInterest");
+        }
+    }
+
+    void RestoreOriginalMaterials()
+    {
+        foreach (var kvp in originalLayers)
+        {
+            GameObject obj = kvp.Key;
+            int originalLayer = kvp.Value;
+
+            if (obj != null)
+            {
+                obj.layer = originalLayer;
+            }
+        }
+
+        originalLayers.Clear();
     }
 
     IEnumerator FadeVolumeTo(float targetWeight)
@@ -121,5 +204,15 @@ public class VisualAcuity : MonoBehaviour
             yield return null;
         }
         cooldownOverlay.transform.localScale = originalScale;
+    }
+    
+    IEnumerator UpdateHighlightedObjectsCoroutine()
+    {
+        while (isFocusing)
+        {
+            RestoreOriginalMaterials();
+            HighlightObjects();
+            yield return new WaitForSeconds(updateInterval);
+        }
     }
 }
