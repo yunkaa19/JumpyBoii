@@ -7,6 +7,7 @@ TagManager:
   - Danger
   - Objective
   - PointOfInterest
+  - Reach
   layers:
   - Default
   - TransparentFX
