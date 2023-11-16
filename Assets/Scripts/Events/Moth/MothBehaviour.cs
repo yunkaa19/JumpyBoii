@@ -10,6 +10,7 @@ public class MothBehaviour : MonoBehaviour
     private bool isAwake = false;
     private bool isLanternHit = false;
     private bool isExitHit = false;
+    private bool flyAway = false;
     
 
     public void WakeUp()
@@ -23,9 +24,15 @@ public class MothBehaviour : MonoBehaviour
         isLanternHit = true;
     }
     
-    public void HitExit()
+    void OnTriggerEnter(Collider other)
     {
-        isExitHit = true;
+        Debug.Log("Triggered:" + other.tag);
+        if (other.CompareTag("Finish"))
+        {
+            Debug.Log("Triggered");
+            
+            isExitHit = true;
+        }
     }
 
     void Update()
@@ -34,14 +41,14 @@ public class MothBehaviour : MonoBehaviour
         {
             FlyTowardsLantern();
         }
+        else if (isAwake && isExitHit)
+        {
+            Destroy(gameObject);
+        }
         else if (isAwake && isLanternHit)
         {
             speed = 35f;
             FlyAway();
-        }
-        else if (isAwake && isExitHit)
-        {
-            Destroy(gameObject);
         }
     }
     
@@ -53,6 +60,7 @@ public class MothBehaviour : MonoBehaviour
 
     void FlyAway()
     {
+        flyAway = true;
         transform.position = Vector3.MoveTowards(transform.position, exit.transform.position, speed * Time.deltaTime);
     }
 }

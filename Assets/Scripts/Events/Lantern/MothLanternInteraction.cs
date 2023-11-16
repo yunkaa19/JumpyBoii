@@ -16,7 +16,6 @@ public class MothLanternInteraction : MonoBehaviour
         
         if (other.CompareTag("Objective"))
         {   
-            Debug.Log("Moth hit lantern");
             mothScript.HitLantern();
             lanternScript.Hit();
         }
@@ -25,7 +24,7 @@ public class MothLanternInteraction : MonoBehaviour
         {
             playedSound = true;
             audioSource.Play();
-            //goatScript.PlaySound();
+            goatScript.WakeUp();
             
             
         }
