@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 
-public class WebAnchoring : MonoBehaviour
+public class WebAnchoring_depracated : MonoBehaviour
 {
 
     #region Variables

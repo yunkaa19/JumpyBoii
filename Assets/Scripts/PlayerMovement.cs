@@ -37,24 +37,40 @@ public class PlayerMovement : MonoBehaviour
     
     [Header("Web Anchoring")]
     private WebAnchoring _webAnchoring;
+    private Rigidbody _rigidbody;
+    
     
     private float _moveInputHorizontal;
     private float _moveInputVertical;
-    private Rigidbody _rigidbody;
 
     [Header("Focus Mode")]
-    private float focusMultiplier = 1f;    
-    #endregion
+    private float focusMultiplier = 1f;
 
+    [Header("Animator")] 
+    public Animator animator;
+
+    public string anim_Walk;
+    public string anim_Jump;
+    public string anim_Die;
+    public string anim_Idle;
+    
+    #endregion
+        
+    
+    
+    
     #region UnityMethods
 
     void Start()
     {
         _rigidbody = GetComponent<Rigidbody>();
         _webAnchoring = GetComponent<WebAnchoring>();
+        animator = GetComponent<Animator>();
+        
         //Locking the cursor so it doesnt go boing boing around TODO:Move it to game manager maybe.
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
+        animator.Play(anim_Idle);
     }
 
     void Update()
@@ -92,6 +108,10 @@ public class PlayerMovement : MonoBehaviour
     void FixedUpdate()
     {
         OnMove();
+        if (_webAnchoring.isUsingTether)
+        {
+            ConstrainMovementByTether();
+        }
     }
 
     
@@ -190,7 +210,7 @@ public class PlayerMovement : MonoBehaviour
                 // Increase speed by airSpeedMultiplier when in air
                 _rigidbody.velocity = new Vector3(moveDirection.x * currentSpeed * airSpeedMultiplier, _rigidbody.velocity.y, moveDirection.z * currentSpeed * airSpeedMultiplier);
             }
-            
+            animator.Play(anim_Walk);
             
             
         }
@@ -209,6 +229,8 @@ public class PlayerMovement : MonoBehaviour
 
         // Apply jump force and forward momentum
         _rigidbody.velocity = new Vector3(forwardMomentum.x, calculatedJumpForce, forwardMomentum.z);
+        
+        animator.Play(anim_Jump);
     }
 
     /// <summary>
@@ -229,6 +251,34 @@ public class PlayerMovement : MonoBehaviour
     public float GetJumpCharge()
     {
         return jumpChargeTime / maxChargeTime; // This returns a value between 0 and 1
+    }
+    
+    void ConstrainMovementByTether()
+    {
+        float gravityScale = 1f;
+        Vector3 anchorPoint = _webAnchoring.ropePositions[0];
+        Vector3 playerToAnchor = anchorPoint - transform.position;
+        float distanceToAnchor = playerToAnchor.magnitude;
+
+        // If the player is beyond the max rope length, constrain their position
+        if (distanceToAnchor > _webAnchoring.maxRopeLength)
+        {
+            Vector3 ropeDirection = playerToAnchor.normalized;
+            Vector3 constrainedPosition = anchorPoint - ropeDirection * _webAnchoring.maxRopeLength;
+            transform.position = constrainedPosition;
+
+            // Apply damping to vertical motion to prevent "flying"
+            if (_rigidbody.velocity.y > 0)
+            {
+                _rigidbody.velocity = new Vector3(_rigidbody.velocity.x, _rigidbody.velocity.y * 0.5f, _rigidbody.velocity.z);
+            }
+        }
+
+        // Consistently apply gravity if the player is not grounded
+        if (!IsGrounded())
+        {
+            _rigidbody.AddForce(Physics.gravity * _rigidbody.mass * gravityScale, ForceMode.Acceleration);
+        }
     }
     
     
